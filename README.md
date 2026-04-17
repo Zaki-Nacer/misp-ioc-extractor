@@ -56,3 +56,41 @@ Le script génère deux types de fichiers de sortie :
 **Principe de Moindre Privilège** : Concepte consistant à donner le stric nécessaire de droit à un utilisateur ou à un script
 
 
+## Fonctionnement général du script
+* **1ère étape :** Se connecter à la VM et au MISP.
+* **2ème étape :** Chercher un Hash choisi arbitrairement.
+* **3ème étape :** Récupérer l'événement dont le Hash est issu.
+* **4ème étape :** À l'aide de l'événement, on récupère le reste des IoCs (comme le hash de l'étape 3).
+* **5ème étape :** Filtrer les IoCs importants (liés à un pare-feu, Antivirus ou EDR).
+* **6ème étape :** Dresser un tableau des IoCs filtrés, sous format .json et .csv.
+
+
+
+## Logique de l'algorithme 
+
+### Recherche et Récupération de l'Événement
+
+1. **Connexion :** On initialise la connexion à l'API MISP avec nos clés.
+2. **Recherche :** On demande à MISP de chercher le Hash (notre point d'entrée).
+3. **Extraction de l'ID :** Si le Hash est trouvé, on extrait le numéro (`event_id`) du dossier parent.
+4. **Téléchargement :** On télécharge l'intégralité du dossier (l'Event) grâce à cet ID pour obtenir le tableau brut des IoCs.
+
+
+
+### Filtrage des IoCs utiles 
+1. **Définition :** On définit les types d'attributs qu'on veut garder (ex: `ip-dst`, `domain`, `md5`).
+*2. **Initialisation :** On crée un tableau `IoCs_filtres` qui est pour l'instant vide.*
+
+*(Boucle  - FOR)*
+3. **Parcours :** On parcourt le tableau contenant tous les IoCs de l'événement ciblé.
+4. **Comparaison :** Pendant le parcours, on compare le `type` de chaque IoC avec notre liste définie à l'étape 1.
+5. **Injection :** Si le type correspond, on injecte l'IoC complet dans notre tableau filtré. Sinon, on l'ignore et on passe au suivant.
+6. **Fin :** On répète l'opération jusqu'à avoir lu le dernier élément du tableau.
+
+
+
+### Génération des fichiers d'export (CSV et JSON)
+1. **Vérification :** On s'assure que le tableau filtré n'est pas vide.
+2. **Création du CSV :** On crée un fichier `iocs.csv`, on écrit les en-têtes (Type, Valeur, Catégorie), puis on insère chaque élément de notre tableau filtré ligne par ligne.
+3. **Création du JSON :** On crée un fichier `iocs.json` et on y injecte directement notre tableau formaté pour les machines (EDR/Pare-feu).
+4. **Clôture :** On ferme les connexions et on affiche un message de succès.
